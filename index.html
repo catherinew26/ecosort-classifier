@@ -1,0 +1,335 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>EcoSort - Waste Identifier</title>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+  <!-- Teachable Machine -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f7f3;
+      text-align: center;
+      padding: 20px;
+      color: #26382b;
+    }
+
+    .container {
+      background: white;
+      max-width: 420px;
+      margin: auto;
+      padding: 25px;
+      border-radius: 18px;
+    }
+
+    h1 {
+      color: #287447;
+    }
+
+    button {
+      background: #287447;
+      color: white;
+      border: none;
+      padding: 14px 22px;
+      border-radius: 10px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    img {
+      max-width: 100%;
+      max-height: 260px;
+      margin-top: 15px;
+      border-radius: 12px;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      background: #eaf4ec;
+      display: none;
+    }
+
+    #category {
+      font-size: 25px;
+      font-weight: bold;
+    }
+
+    #status {
+      margin: 15px;
+      color: #555;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>EcoSort</h1>
+
+    <p>Take a photo of your waste item to find out
+       how to dispose of it.</p>
+
+    <p id="status">Loading AI model...</p>
+
+    <!-- Photo selection -->
+    <input
+      type="file"
+      id="imageInput"
+      accept="image/*"
+      capture="environment"
+    >
+
+    <br>
+
+    <!-- Image preview -->
+    <img id="preview" style="display:none;">
+
+    <br>
+
+    <button id="identifyButton"
+            onclick="classifyImage()"
+            disabled>
+      Identify My Waste
+    </button>
+
+    <!-- Results -->
+    <div id="result">
+
+      <h3>Identified Item</h3>
+
+      <p id="item"></p>
+
+      <p id="confidence"></p>
+
+      <hr>
+
+      <p>Your disposal category:</p>
+
+      <div id="category"></div>
+
+      <p id="instructions"></p>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    // 1. INSERT YOUR TEACHABLE MACHINE URL HERE
+
+    const MODEL_URL =
+      "https://teachablemachine.withgoogle.com/models/lBQTKwlfc/";
+
+    let model = null;
+
+    // 2. LOAD THE AI MODEL
+
+    async function loadModel() {
+
+      try {
+
+        model = await tmImage.load(
+          MODEL_URL + "model.json",
+          MODEL_URL + "metadata.json"
+        );
+
+        document.getElementById("status").innerText =
+          "AI model ready! Upload a photo.";
+
+        document.getElementById("identifyButton").disabled =
+          false;
+
+      } catch (error) {
+
+        document.getElementById("status").innerText =
+          "Could not load the AI model. Check your model URL.";
+
+        console.error(error);
+
+      }
+
+    }
+
+    // 3. DISPLAY THE SELECTED IMAGE
+
+    document.getElementById("imageInput")
+      .addEventListener("change", function(event) {
+
+        const file = event.target.files[0];
+
+        if (file) {
+
+          const preview = document.getElementById("preview");
+
+          preview.src = URL.createObjectURL(file);
+
+          preview.style.display = "block";
+
+          document.getElementById("result").style.display =
+            "none";
+
+        }
+
+      });
+
+    // 4. MATCH THE IDENTIFIED ITEM TO DISPOSAL RULES
+
+    function getDisposalRule(itemName) {
+
+      const rules = {
+
+        "Class 1: Plastic Bottle": {
+          category: "RECYCLABLE",
+          instructions: "Empty and rinse the bottle. Follow local rules for caps."
+        },
+
+        "Class 2: Glass Bottle": {
+          category: "RECYCLABLE",
+          instructions: "Empty the container and follow local glass recycling rules."
+        },
+
+        "Class 3: Aluminum Can": {
+          category: "RECYCLABLE",
+          instructions: "Empty the can and place it in the appropriate recycling bin."
+        },
+
+        "Class 4: Cardboard": {
+          category: "RECYCLABLE",
+          instructions: "Keep cardboard clean and dry. Flatten before recycling"
+        },
+
+        "Class 5: Food Wrapper": {
+          category: "TRASH",
+          instructions: "Place in your waste bin."
+        },
+
+        "Class 6: Glass Jar": {
+          category: "RECYCLABLE",
+          instructions: "Empty the container and follow local glass recycling rules."
+        },
+
+  	"Class 7: Banana Peel": {
+          category: "COMPOST",
+          instructions: "Place in your approved food waste or compost collection."
+        }
+
+      };
+
+      return rules[itemName] || {
+        category: "CHECK LOCAL RULES",
+        instructions: "We do not currently have a verified disposal rule for this item."
+      };
+
+    }
+
+    // 5. CLASSIFY THE IMAGE
+
+    async function classifyImage() {
+
+      const image = document.getElementById("preview");
+
+      if (!image.src) {
+        alert("Please upload a photo first.");
+        return;
+      }
+
+      const button = document.getElementById("identifyButton");
+
+      button.disabled = true;
+
+      document.getElementById("status").innerText =
+        "Identifying your item...";
+
+      try {
+
+        const predictions = await model.predict(image);
+
+        // Sort predictions from highest to lowest
+
+        predictions.sort(
+          (a, b) => b.probability - a.probability
+        );
+
+        const best = predictions[0];
+
+        const itemName = best.className;
+
+        const confidence = best.probability * 100;
+
+        // 6. CHECK CONFIDENCE
+
+        if (confidence < 70) {
+
+          document.getElementById("status").innerText =
+            "The AI is unsure. Please try another photo.";
+
+          document.getElementById("result").style.display =
+            "none";
+
+          return;
+
+        }
+
+        // 7. FIND DISPOSAL INSTRUCTIONS
+
+        const disposal = getDisposalRule(itemName);
+
+        // 8. DISPLAY RESULTS
+
+        document.getElementById("item").innerText =
+          itemName;
+
+        document.getElementById("confidence").innerText =
+          "AI confidence: " + confidence.toFixed(1) + "%";
+
+        document.getElementById("category").innerText =
+          disposal.category;
+
+        document.getElementById("instructions").innerText =
+          disposal.instructions;
+
+        document.getElementById("result").style.display =
+          "block";
+
+        document.getElementById("status").innerText =
+          "Identification complete!";
+
+      } catch (error) {
+
+        document.getElementById("status").innerText =
+          "Something went wrong. Please try again.";
+
+        console.error(error);
+
+      } finally {
+
+        button.disabled = false;
+
+      }
+
+    }
+
+    // START THE MODEL
+
+    loadModel();
+
+  </script>
+
+</body>
+
+</html>
