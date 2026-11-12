@@ -130,14 +130,14 @@
 
   <script>
 
-    // 1. INSERT YOUR TEACHABLE MACHINE URL HERE
+    //TEACHABLE MACHINE URL 
 
     const MODEL_URL =
       "https://teachablemachine.withgoogle.com/models/lBQTKwlfc/";
 
     let model = null;
 
-    // 2. LOAD THE AI MODEL
+    //AI MODEL
 
     async function loadModel() {
 
@@ -165,7 +165,7 @@
 
     }
 
-    // 3. DISPLAY THE SELECTED IMAGE
+    //DISPLAY THE SELECTED IMAGE
 
     document.getElementById("imageInput")
       .addEventListener("change", function(event) {
@@ -187,7 +187,7 @@
 
       });
 
-    // 4. MATCH THE IDENTIFIED ITEM TO DISPOSAL RULES
+    //MATCH THE IDENTIFIED ITEM TO DISPOSAL RULES
 
     function getDisposalRule(itemName) {
 
@@ -237,7 +237,7 @@
 
     }
 
-    // 5. CLASSIFY THE IMAGE
+    //CLASSIFY THE IMAGE
 
     async function classifyImage() {
 
@@ -276,7 +276,7 @@
         if (confidence < 70) {
 
           document.getElementById("status").innerText =
-            "The AI is unsure. Please try another photo.";
+            "We are unable to identify the item. Please try another photo.";
 
           document.getElementById("result").style.display =
             "none";
@@ -285,11 +285,11 @@
 
         }
 
-        // 7. FIND DISPOSAL INSTRUCTIONS
+        //FIND DISPOSAL INSTRUCTIONS
 
         const disposal = getDisposalRule(itemName);
 
-        // 8. DISPLAY RESULTS
+        //DISPLAY RESULTS
 
         document.getElementById("item").innerText =
           itemName;
