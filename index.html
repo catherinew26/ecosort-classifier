@@ -4,8 +4,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>EcoSort - Waste Identifier</title>
 
@@ -47,6 +46,11 @@
       cursor: pointer;
     }
 
+    button:disabled {
+      background: #aab9ae;
+      cursor: not-allowed;
+    }
+
     img {
       max-width: 100%;
       max-height: 260px;
@@ -71,6 +75,38 @@
       margin: 15px;
       color: #555;
     }
+
+    /* ERROR MESSAGE DESIGN */
+
+    #errorBox {
+      display: none;
+      margin-top: 20px;
+      padding: 18px;
+      background: #fff3e8;
+      border: 1px solid #e8c9a8;
+      border-radius: 12px;
+      color: #704b2e;
+    }
+
+    #errorTitle {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 0;
+    }
+
+    #errorMessage {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #errorAction {
+      background: #287447;
+    }
+
+    #retryModelButton {
+      display: none;
+    }
+
   </style>
 
 </head>
@@ -81,12 +117,15 @@
 
     <h1>EcoSort</h1>
 
-    <p>Take a photo of your waste item to find out
-       how to dispose of it.</p>
+    <p>
+      Take a photo of your waste item to find out
+      how to dispose of it.
+    </p>
 
-    <p id="status">Loading...</p>
+    <p id="status">Loading AI model...</p>
 
-    <!-- Photo selection -->
+    <!-- PHOTO SELECTION -->
+
     <input
       type="file"
       id="imageInput"
@@ -96,18 +135,51 @@
 
     <br>
 
-    <!-- Image preview -->
-    <img id="preview" style="display:none;">
+    <!-- IMAGE PREVIEW -->
+
+    <img
+      id="preview"
+      style="display:none;"
+      alt="Selected waste item"
+    >
 
     <br>
 
-    <button id="identifyButton"
-            onclick="classifyImage()"
-            disabled>
+    <!-- IDENTIFY BUTTON -->
+
+    <button
+      id="identifyButton"
+      disabled
+      onclick="classifyImage()"
+    >
       Identify My Waste
     </button>
 
-    <!-- Results -->
+    <!-- RETRY MODEL BUTTON -->
+
+    <button
+      id="retryModelButton"
+      onclick="loadModel()"
+    >
+      Retry Loading Model
+    </button>
+
+    <!-- ERROR MESSAGE -->
+
+    <div id="errorBox" role="alert">
+
+      <p id="errorTitle"></p>
+
+      <p id="errorMessage"></p>
+
+      <button id="errorAction">
+        Try Again
+      </button>
+
+    </div>
+
+    <!-- RESULTS -->
+
     <div id="result">
 
       <h3>Identified Item</h3>
@@ -130,16 +202,75 @@
 
   <script>
 
-    //TEACHABLE MACHINE URL 
+    // MODEL SETTINGS
 
     const MODEL_URL =
       "https://teachablemachine.withgoogle.com/models/lBQTKwlfc/";
 
-    let model = null;
+    const CONFIDENCE_THRESHOLD = 0.70;
 
-    //AI MODEL
+    let model = null;
+    let selectedFile = null;
+    let currentImageURL = null;
+
+    // ELEMENT REFERENCES
+
+    const imageInput = document.getElementById("imageInput");
+    const preview = document.getElementById("preview");
+    const identifyButton = document.getElementById("identifyButton");
+    const retryModelButton = document.getElementById("retryModelButton");
+
+    // UPDATE IDENTIFY BUTTON
+
+    function updateIdentifyButton() {
+
+      identifyButton.disabled = !model;
+      );
+
+    }
+
+    // ERROR MESSAGE SYSTEM
+
+    function showError(title, message, buttonText, action) {
+
+      document.getElementById("errorTitle").innerText = title;
+
+      document.getElementById("errorMessage").innerText = message;
+
+      const errorAction = document.getElementById("errorAction");
+
+      errorAction.innerText = buttonText;
+
+      errorAction.onclick = action;
+
+      document.getElementById("errorBox").style.display = "block";
+
+      document.getElementById("result").style.display = "none";
+
+    }
+
+    function hideError() {
+
+      document.getElementById("errorBox").style.display = "none";
+
+    }
+
+    // LOAD AI MODEL
 
     async function loadModel() {
+
+      model = null;
+
+      updateIdentifyButton();
+
+      retryModelButton.disabled = true;
+
+      retryModelButton.style.display = "none";
+
+      document.getElementById("status").innerText =
+        "Loading AI model...";
+
+      hideError();
 
       try {
 
@@ -149,45 +280,128 @@
         );
 
         document.getElementById("status").innerText =
-          "Please upload a photo.";
-
-        document.getElementById("identifyButton").disabled =
-          false;
+          "AI model ready! Please upload a photo.";
 
       } catch (error) {
 
-        document.getElementById("status").innerText =
-          "Could not load the AI model. Check your model URL.";
+        model = null;
 
-        console.error(error);
+        document.getElementById("status").innerText =
+          "Unable to load the AI model.";
+
+        showError(
+          "Model loading failed",
+          "EcoSort couldn't load its identification system. Please check your internet connection and try again.",
+          "Retry",
+          loadModel
+        );
+
+        retryModelButton.style.display = "inline-block";
+
+        console.error("Model loading error:", error);
 
       }
 
+      retryModelButton.disabled = false;
+
+      updateIdentifyButton();
+
     }
 
-    //DISPLAY THE SELECTED IMAGE
+    // PHOTO SELECTION
 
-    document.getElementById("imageInput")
-      .addEventListener("change", function(event) {
+    imageInput.addEventListener("change", function(event) {
 
-        const file = event.target.files[0];
+      const file = event.target.files[0];
 
-        if (file) {
+      hideError();
 
-          const preview = document.getElementById("preview");
+      document.getElementById("result").style.display = "none";
 
-          preview.src = URL.createObjectURL(file);
+      selectedFile = null;
 
-          preview.style.display = "block";
+      updateIdentifyButton();
 
-          document.getElementById("result").style.display =
-            "none";
+      if (currentImageURL) {
 
-        }
+        URL.revokeObjectURL(currentImageURL);
 
-      });
+        currentImageURL = null;
 
-    //MATCH THE IDENTIFIED ITEM TO DISPOSAL RULES
+      }
+
+      preview.style.display = "none";
+
+      preview.removeAttribute("src");
+
+      if (!file) {
+
+        document.getElementById("status").innerText =
+          "Please select a photo.";
+
+        return;
+
+      }
+
+      // CHECK FILE TYPE
+
+      if (!file.type.startsWith("image/")) {
+
+        showError(
+          "Invalid file",
+          "Please select an image file to identify your waste.",
+          "Choose Photo",
+          function() {
+            imageInput.click();
+          }
+        );
+
+        return;
+
+      }
+
+      selectedFile = file;
+
+      currentImageURL = URL.createObjectURL(file);
+
+      preview.onload = function() {
+
+        preview.style.display = "block";
+
+        document.getElementById("status").innerText =
+          "Photo ready! You can now identify your item.";
+
+        updateIdentifyButton();
+
+      };
+
+      preview.onerror = function() {
+
+        selectedFile = null;
+
+        preview.style.display = "none";
+
+        document.getElementById("status").innerText =
+          "Unable to display this photo.";
+
+        showError(
+          "Photo couldn't be loaded",
+          "Something went wrong while opening your image. Please choose another photo.",
+          "Choose Another Photo",
+          function() {
+            imageInput.click();
+          }
+        );
+
+        updateIdentifyButton();
+
+      };
+
+      preview.src = currentImageURL;
+
+    });
+
+    // DISPOSAL RULES
 
     function getDisposalRule(itemName) {
 
@@ -210,7 +424,7 @@
 
         "Class 4: Cardboard": {
           category: "RECYCLABLE",
-          instructions: "Keep cardboard clean and dry. Flatten before recycling"
+          instructions: "Keep cardboard clean and dry. Flatten before recycling."
         },
 
         "Class 5: Food Wrapper": {
@@ -223,43 +437,92 @@
           instructions: "Empty the container and follow local glass recycling rules."
         },
 
-  	"Class 7: Banana Peel": {
+        "Class 7: Banana Peel": {
           category: "COMPOST",
           instructions: "Place in your approved food waste or compost collection."
         }
 
       };
 
-      return rules[itemName] || {
-        category: "CHECK LOCAL RULES",
-        instructions: "We do not currently have a verified disposal rule for this item."
-      };
+      return rules[itemName] || null;
 
     }
 
-    //CLASSIFY THE IMAGE
+    // CLASSIFY IMAGE
 
     async function classifyImage() {
 
-      const image = document.getElementById("preview");
+      hideError();
 
-      if (!image.src) {
-        alert("Please upload a photo first.");
+      document.getElementById("result").style.display = "none";
+
+      // CHECK PHOTO
+
+      if (!selectedFile) {
+
+        showError(
+          "No photo selected",
+          "Please choose a photo of the waste item you'd like to identify.",
+          "Choose Photo",
+          function() {
+            imageInput.click();
+          }
+        );
+
         return;
+
       }
 
-      const button = document.getElementById("identifyButton");
+      // CHECK MODEL
 
-      button.disabled = true;
+      if (!model) {
+
+        showError(
+          "AI model unavailable",
+          "The identification system isn't ready. Please try loading it again.",
+          "Retry",
+          loadModel
+        );
+
+        return;
+
+      }
+
+      // CHECK IMAGE
+
+      if (!preview.complete || preview.naturalWidth === 0) {
+
+        showError(
+          "Photo unavailable",
+          "EcoSort couldn't read your photo. Please select another image.",
+          "Choose Another Photo",
+          function() {
+            imageInput.click();
+          }
+        );
+
+        return;
+
+      }
+
+      identifyButton.disabled = true;
 
       document.getElementById("status").innerText =
         "Identifying your item...";
 
       try {
 
-        const predictions = await model.predict(image);
+        // GET AI PREDICTIONS
 
-        // Sort predictions from highest to lowest
+        const predictions = await model.predict(preview);
+
+        if (!predictions || predictions.length === 0) {
+
+          throw new Error("No predictions returned by the model.");
+
+        }
+
+        // SORT PREDICTIONS
 
         predictions.sort(
           (a, b) => b.probability - a.probability
@@ -269,39 +532,68 @@
 
         const itemName = best.className;
 
-        const confidence = best.probability * 100;
+        const confidence = best.probability;
 
-        // 6. CHECK CONFIDENCE
+        // CHECK CONFIDENCE
 
-        if (confidence < 70) {
+        if (
+          typeof confidence !== "number" ||
+          !Number.isFinite(confidence) ||
+          confidence < 0 ||
+          confidence > 1
+        ) {
+
+          throw new Error("Invalid confidence score.");
+
+        }
+
+        if (confidence < CONFIDENCE_THRESHOLD) {
 
           document.getElementById("status").innerText =
-            "We are unable to identify the item. Please try another photo.";
+            "Identification uncertain.";
 
-          document.getElementById("result").style.display =
-            "none";
+          showError(
+            "We're not quite sure!",
+            "EcoSort couldn't confidently identify this item. Try taking another photo with better lighting and a clear view of the item.",
+            "Try Another Photo",
+            function() {
+              imageInput.click();
+            }
+          );
 
           return;
 
         }
 
-        //FIND DISPOSAL INSTRUCTIONS
+        // GET DISPOSAL RULE
 
         const disposal = getDisposalRule(itemName);
 
-        //DISPLAY RESULTS
+        // DISPLAY IDENTIFIED ITEM
 
         document.getElementById("item").innerText =
           itemName;
 
         document.getElementById("confidence").innerText =
-          "AI confidence: " + confidence.toFixed(1) + "%";
+          "AI confidence: " + (confidence * 100).toFixed(1) + "%";
 
-        document.getElementById("category").innerText =
-          disposal.category;
+        if (disposal) {
 
-        document.getElementById("instructions").innerText =
-          disposal.instructions;
+          document.getElementById("category").innerText =
+            disposal.category;
+
+          document.getElementById("instructions").innerText =
+            disposal.instructions;
+
+        } else {
+
+          document.getElementById("category").innerText =
+            "CHECK LOCAL RULES";
+
+          document.getElementById("instructions").innerText =
+            "We recognised this item, but we don't currently have verified disposal guidance for it.";
+
+        }
 
         document.getElementById("result").style.display =
           "block";
@@ -311,14 +603,23 @@
 
       } catch (error) {
 
-        document.getElementById("status").innerText =
-          "Something went wrong. Please try again.";
+        console.error("Identification error:", error);
 
-        console.error(error);
+        document.getElementById("status").innerText =
+          "Identification failed.";
+
+        showError(
+          "Something went wrong",
+          "EcoSort couldn't identify your photo. Please try again. If the problem continues, reload the app.",
+          "Try Again",
+          function() {
+            classifyImage();
+          }
+        );
 
       } finally {
 
-        button.disabled = false;
+        updateIdentifyButton();
 
       }
 
