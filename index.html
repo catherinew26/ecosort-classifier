@@ -224,9 +224,12 @@
 
     function updateIdentifyButton() {
 
-      identifyButton.disabled = !model;
-     
-
+      identifyButton.disabled = !(
+        model &&
+        selectedFile &&
+        preview.complete &&
+        preview.naturalWidth > 0
+      );
     }
 
     // ERROR MESSAGE SYSTEM
