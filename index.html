@@ -160,6 +160,7 @@
     <button
       id="retryModelButton"
       onclick="loadModel()"
+      style="display:none;"
     >
       Retry Loading Model
     </button>
@@ -260,56 +261,62 @@
 
     // LOAD AI MODEL
 
-    async function loadModel() {
+   
+async function loadModel() {
 
-      model = null;
+  model = null;
+  updateIdentifyButton();
 
-      updateIdentifyButton();
+  if (retryModelButton) {
+    retryModelButton.disabled = true;
+    retryModelButton.style.display = "none";
+  }
 
-      retryModelButton.disabled = true;
+  document.getElementById("status").innerText =
+    "Loading AI model...";
 
-      retryModelButton.style.display = "none";
+  hideError();
 
-      document.getElementById("status").innerText =
-        "Loading AI model...";
+  try {
 
-      hideError();
+    model = await tmImage.load(
+      MODEL_URL + "model.json",
+      MODEL_URL + "metadata.json"
+    );
 
-      try {
+    document.getElementById("status").innerText =
+      "AI model ready! Please upload a photo.";
 
-        model = await tmImage.load(
-          MODEL_URL + "model.json",
-          MODEL_URL + "metadata.json"
-        );
+  } catch (error) {
 
-        document.getElementById("status").innerText =
-          "AI model ready! Please upload a photo.";
+    model = null;
 
-      } catch (error) {
+    document.getElementById("status").innerText =
+      "Unable to load the AI model.";
 
-        model = null;
+    showError(
+      "Model loading failed",
+      "EcoSort couldn't load its identification system. Please check your internet connection and try again.",
+      "Retry",
+      loadModel
+    );
 
-        document.getElementById("status").innerText =
-          "Unable to load the AI model.";
-
-        showError(
-          "Model loading failed",
-          "EcoSort couldn't load its identification system. Please check your internet connection and try again.",
-          "Retry",
-          loadModel
-        );
-
-        retryModelButton.style.display = "inline-block";
-
-        console.error("Model loading error:", error);
-
-      }
-
-      retryModelButton.disabled = false;
-
-      updateIdentifyButton();
-
+    if (retryModelButton) {
+      retryModelButton.style.display = "inline-block";
     }
+
+    console.error("Model loading error:", error);
+
+  }
+
+  if (retryModelButton) {
+    retryModelButton.disabled = false;
+  }
+
+  updateIdentifyButton();
+
+}
+
 
     // PHOTO SELECTION
 
